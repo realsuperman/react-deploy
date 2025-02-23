@@ -1,0 +1,42 @@
+name: react ci&cd
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: GitHub Repository 파일 불러오기
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: web-vitals 설치
+        run: npm install web-vitals
+
+      - name: 프로젝트 의존성 설치
+        run: npm install
+
+      - name: React 빌드
+        run: npm run build
+
+      - name: AWS Resource에 접근할 수 있도록 AWS credentials 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ap-northeast-2
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: S3 기존 파일들 전체 삭제 후 새로 업로드
+        run: |
+          aws s3 rm --recursive s3://simple-bucket-react-project
+          aws s3 cp build/ s3://simple-bucket-react-project/ --recursive
+
+      - name: CloudFront 캐시 무효화
+        run: aws cloudfront create-invalidation --distribution-id E2ELXTJ0WQ3OY7 --paths "/*"
